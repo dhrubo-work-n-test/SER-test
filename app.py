@@ -3,7 +3,6 @@ import numpy as np
 import librosa
 import torch
 import matplotlib.pyplot as plt
-from io import BytesIO
 from tensorflow.keras.models import load_model
 from transformers import Wav2Vec2Processor, Wav2Vec2Model
 
@@ -11,20 +10,20 @@ from transformers import Wav2Vec2Processor, Wav2Vec2Model
 # 1️⃣ Page config
 # -------------------------------
 st.set_page_config(page_title="Speech Emotion Recognition", layout="wide")
-
 st.title("🎤 Speech Emotion Recognition (SER)")
-st.write("Upload a WAV file or record your voice to detect the emotion.")
+st.write("Upload a WAV file to detect the emotion.")
 
 # -------------------------------
 # 2️⃣ Load models
 # -------------------------------
-MODEL_PATH = "SER_Wav2Vec2_Model.h5"
-classifier = load_model(MODEL_PATH)
+MODEL_PATH = "SER_Wav2Vec2_Model.keras"  # Updated to Keras 3 format
+classifier = load_model(MODEL_PATH, compile=False)
 
 emotions = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust']
 
+# Load Wav2Vec2 processor & model (CPU-only)
 processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
-wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base-960h")  # CPU
+wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base-960h")
 
 # -------------------------------
 # 3️⃣ Functions
@@ -60,7 +59,9 @@ audio_file = st.file_uploader("Upload a WAV file", type=["wav"])
 if audio_file is not None:
     y, sr = librosa.load(audio_file, sr=None)
     st.audio(audio_file, format="audio/wav")
-    pred_emotion, pred_probs = predict_emotion(y, sr)
+    
+    with st.spinner("Predicting emotion..."):
+        pred_emotion, pred_probs = predict_emotion(y, sr)
     
     st.subheader("Predicted Emotion")
     st.write(f"🎯 {pred_emotion}")
