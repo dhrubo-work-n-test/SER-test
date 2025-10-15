@@ -16,8 +16,9 @@ st.write("Upload a WAV file to detect the emotion.")
 # -------------------------------
 # 2️⃣ Load models
 # -------------------------------
-MODEL_PATH = "SER_Wav2Vec2_Model.keras"  # Updated to Keras 3 format
+MODEL_PATH = "SER_Wav2Vec2_Model.keras"
 classifier = load_model(MODEL_PATH, compile=False)
+
 
 emotions = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust']
 
@@ -73,3 +74,4 @@ if audio_file is not None:
     plot_waveform(y, sr)
 
 st.info("⚡ Note: Model uses Wav2Vec2 embeddings. CPU-only prediction may take a few seconds.")
+
