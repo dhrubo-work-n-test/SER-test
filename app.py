@@ -1,67 +1,74 @@
 import streamlit as st
 import numpy as np
 import librosa
-import tensorflow as tf
+import torch
+import matplotlib.pyplot as plt
+from io import BytesIO
+from tensorflow.keras.models import load_model
+from transformers import Wav2Vec2Processor, Wav2Vec2Model
 
-# -----------------------------
-# App Configuration
-# -----------------------------
-st.set_page_config(page_title="🎤 Speech Emotion Recognition", layout="centered")
-st.title("🎧 Speech Emotion Recognition Demo")
-st.write("Upload a voice sample (.wav) to predict its emotion!")
+# -------------------------------
+# 1️⃣ Page config
+# -------------------------------
+st.set_page_config(page_title="Speech Emotion Recognition", layout="wide")
 
-# -----------------------------
-# Load the Model
-# -----------------------------
-@st.cache_resource
-def load_model():
-    model = tf.keras.models.load_model("SML_SER_Model.h5")
-    return model
+st.title("🎤 Speech Emotion Recognition (SER)")
+st.write("Upload a WAV file or record your voice to detect the emotion.")
 
-model = load_model()
+# -------------------------------
+# 2️⃣ Load models
+# -------------------------------
+MODEL_PATH = "SER_Wav2Vec2_Model.h5"
+classifier = load_model(MODEL_PATH)
 
-# -----------------------------
-# Helper Functions
-# -----------------------------
-def extract_features(file_path):
-    y, sr = librosa.load(file_path, sr=None)
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40)
-    mfcc = mfcc.flatten()
+emotions = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust']
 
-    # Ensure input length matches training
-    expected_len = 2160
-    if len(mfcc) < expected_len:
-        mfcc = np.pad(mfcc, (0, expected_len - len(mfcc)))
-    else:
-        mfcc = mfcc[:expected_len]
+processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
+wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base-960h")  # CPU
 
-    # Reshape for model input
-    mfcc = np.expand_dims(mfcc, axis=(0, 2))
-    return mfcc
+# -------------------------------
+# 3️⃣ Functions
+# -------------------------------
+def extract_wav2vec2_embeddings(y, sr=16000):
+    if sr != 16000:
+        y = librosa.resample(y, orig_sr=sr, target_sr=16000)
+    inputs = processor(y, sampling_rate=16000, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        outputs = wav2vec_model(**inputs)
+    emb = outputs.last_hidden_state.mean(dim=1).numpy()
+    return emb
 
-def predict_emotion(model, mfcc_input):
-    preds = model.predict(mfcc_input)
+def plot_waveform(y, sr):
+    fig, ax = plt.subplots(figsize=(10, 3))
+    ax.plot(np.linspace(0, len(y)/sr, len(y)), y, color='blue')
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Amplitude")
+    ax.set_title("Audio Waveform")
+    st.pyplot(fig)
+
+def predict_emotion(y, sr):
+    emb = extract_wav2vec2_embeddings(y, sr)
+    preds = classifier.predict(emb)
     pred_idx = np.argmax(preds)
-    return pred_idx, preds
+    return emotions[pred_idx], {emotions[i]: float(preds[0][i]) for i in range(len(emotions))}
 
-# Emotion labels (edit if your dataset differs)
-emotion_labels = ['neutral', 'calm', 'happy', 'sad', 'angry', 'fearful', 'disgust']
+# -------------------------------
+# 4️⃣ Audio input
+# -------------------------------
+audio_file = st.file_uploader("Upload a WAV file", type=["wav"])
 
-# -----------------------------
-# File Upload UI
-# -----------------------------
-uploaded_file = st.file_uploader("Upload your voice (.wav)", type=["wav"])
+if audio_file is not None:
+    y, sr = librosa.load(audio_file, sr=None)
+    st.audio(audio_file, format="audio/wav")
+    pred_emotion, pred_probs = predict_emotion(y, sr)
+    
+    st.subheader("Predicted Emotion")
+    st.write(f"🎯 {pred_emotion}")
 
-if uploaded_file is not None:
-    st.audio(uploaded_file, format="audio/wav")
+    st.subheader("Class Probabilities")
+    st.bar_chart(pred_probs)
 
-    with open("temp.wav", "wb") as f:
-        f.write(uploaded_file.read())
+    st.subheader("Waveform")
+    plot_waveform(y, sr)
 
-    mfcc_input = extract_features("temp.wav")
-    pred_idx, preds = predict_emotion(model, mfcc_input)
-
-    st.subheader(f"🎯 Predicted Emotion: **{emotion_labels[pred_idx].upper()}**")
-    st.write("Confidence scores:")
-    for i, label in enumerate(emotion_labels):
-        st.write(f"- {label.capitalize()}: {preds[0][i]:.4f}")
+st.info("⚡ Note: Model uses Wav2Vec2 embeddings. CPU-only prediction may take a few seconds.")
