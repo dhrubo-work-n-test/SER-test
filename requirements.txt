@@ -1,9 +1,0 @@
-streamlit
-torch
-torchaudio
-transformers
-librosa
-soundfile
-numpy
-pandas
-matplotlib
