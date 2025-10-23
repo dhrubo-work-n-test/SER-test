@@ -76,18 +76,19 @@ if audio_path:
         st.subheader("🧠 MFCC Feature Extraction")
         mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
         mfcc_means = np.mean(mfcc, axis=1)
-
+        
         # MFCC Visualization
         fig, ax = plt.subplots(figsize=(10, 4))
-        librosa.display.specshow(mfcc, x_axis='time', sr=sr, cmap='coolwarm', ax=ax)
+        img = librosa.display.specshow(mfcc, x_axis='time', sr=sr, cmap='coolwarm', ax=ax)
         ax.set_title("MFCCs Over Time")
-        fig.colorbar(ax.images[0], ax=ax)
+        fig.colorbar(img, ax=ax)
         st.pyplot(fig)
-
+        
         # Display numeric MFCC means
         st.markdown("### 📊 Mean MFCC Feature Values")
         mfcc_table = {f"MFCC {i+1}": [round(val, 4)] for i, val in enumerate(mfcc_means)}
         st.table(mfcc_table)
+
 
         # --- Step 6: Reset Button ---
         if st.button("🔄 Record / Upload Again"):
