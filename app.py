@@ -47,8 +47,10 @@ if audio_path:
     st.audio(audio_path, format="audio/wav")
 
     if st.button("▶️ Continue to Process"):
-        # Load audio
-        y, sr = librosa.load(audio_path, sr=None)
+        # --- SAFE LOADING (no librosa.load) ---
+        y, sr = sf.read(audio_path)
+        if y.ndim > 1:
+            y = np.mean(y, axis=1)  # convert stereo to mono
 
         # --- Step 3: Plot Waveform ---
         st.subheader("🎵 Waveform")
@@ -84,7 +86,7 @@ if audio_path:
 
         # Display numeric MFCC means
         st.markdown("### 📊 Mean MFCC Feature Values")
-        mfcc_table = {f"MFCC {i+1}": [val] for i, val in enumerate(mfcc_means)}
+        mfcc_table = {f"MFCC {i+1}": [round(val, 4)] for i, val in enumerate(mfcc_means)}
         st.table(mfcc_table)
 
         # --- Step 6: Reset Button ---
