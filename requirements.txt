@@ -1,6 +1,6 @@
-streamlit
-librosa
-soundfile
-matplotlib
-st_audiorec
-numpy
+streamlit==1.39.0
+streamlit-audiorec==0.1.3
+librosa==0.10.2.post1
+soundfile==0.12.1
+matplotlib==3.9.2
+numpy==1.26.4
